@@ -1,0 +1,120 @@
+FIX Encoder Benchmark Notes
+===========================
+
+This document records how FixEncoderLowLatency and FixEncoder_Normal were
+measured.
+
+Build
+-----
+
+    make clean
+    make
+
+The optimized encoder is compiled with -O3 and -mavx2.  The normal baseline
+is compiled with -O3, but without -mavx2; its checksum is explicitly marked
+not to be auto-vectorized.
+
+Workload
+--------
+
+Each benchmark performs 1,000,000 NewOrderSingle encodes into the same
+aligned packet buffer.  The same NewOrderSingleInput object is used for every
+iteration.  Its limit price begins at 1.2345 and increases by 1.0 on each
+iteration.  Its MsgSeqNum (tag 34) begins at 1 and increases by one per
+iteration.
+
+The encoder always starts a new FIX message at the beginning of the packet
+buffer; it does not append to the previous message.  A compiler-only
+doNotOptimize barrier retains the wire stores without adding a hardware load.
+The global scalar-new and array-new counters are compared before and after the
+timed loop, and every reported run was allocation-free.
+
+perf stat
+---------
+
+The following command collects hardware-counter totals for one optimized
+benchmark run:
+
+    perf stat -e cycles,instructions,branches,branch-misses ./FixEncoderLowLatency >/dev/null
+
+An observed run reported:
+
+    cycles:         374,555,391
+    instructions:   645,465,645
+    branches:        86,069,090
+    branch misses:   6,015,484
+    instructions/cycle: 1.72
+
+These totals include one million message encodes plus process startup and
+printing.  Use perf stat primarily to compare builds under the same CPU
+affinity, frequency policy, and load; do not compare it across busy cores.
+
+CPU pinning with taskset
+------------------------
+
+"tasklets" here means Linux `taskset`, which sets CPU affinity for a process.
+The affinity mask exposed 48 logical CPUs, numbered 0-47:
+
+    taskset -pc $$
+
+Topology was inspected with:
+
+    lscpu -e=CPU,CORE,SOCKET,NODE,MAXMHZ,MINMHZ
+
+It showed 24 physical cores (core IDs 0-23), each with two logical CPUs,
+across two sockets.  The benchmark process was allowed to run on all 48
+logical CPUs.
+
+Run one benchmark on a selected logical CPU:
+
+    taskset -c 32 ./FixEncoderLowLatency
+    taskset -c 32 ./FixEncoder_Normal
+
+CPU 0 was noisy in this shared environment: it produced roughly 330 ns/msg
+for the optimized encoder.  To find a quieter CPU, a single optimized run was
+sampled on cores spread over both sockets and sibling sets:
+
+    for cpu in 1 2 3 8 16 24 32 40; do
+       printf 'cpu%s ' "$cpu"
+       taskset -c "$cpu" ./FixEncoderLowLatency | sed -n '2p'
+    done
+
+The sampled times were approximately 136-145 ns/msg on CPUs 1, 2, 3, 8, 16,
+32, and 40; CPU 24 was slower at about 177 ns/msg.  CPU 32 had the lowest
+sampled time, 136.327 ns/msg, and was used for the alternating median runs.
+This identifies the least-interfered sampled logical CPU for this workload;
+it is not a direct measurement of system-wide CPU utilization.
+
+Median procedure
+----------------
+
+The optimized and normal programs were alternated nine times on CPU 32.  This
+shares frequency and thermal drift between the two binaries instead of running
+all optimized samples before all normal samples:
+
+    for run in {1..9}; do
+       taskset -c 32 ./FixEncoderLowLatency | sed -n '2p'
+       taskset -c 32 ./FixEncoder_Normal | sed -n '2p'
+    done
+
+For each program, sort the nine `ns/msg` values and use the fifth value as the
+median.  The median is robust against host interrupts; one optimized sample
+was 176.203 ns/msg while the remaining samples were near 136-139 ns/msg.
+
+Controlled median result on CPU 32
+----------------------------------
+
+    Optimized: 138.321 ns/msg, 7.230 million messages/second
+    Normal:    281.351 ns/msg, 3.554 million messages/second
+
+The optimized encoder was 2.03x faster in this controlled comparison.
+
+Limitations
+-----------
+
+This is a shared server, not an isolated real-time benchmark host.  CPU
+frequency, sibling/core activity, interrupts, cache pressure, and scheduling
+can change wall-clock nanoseconds per message.  For production-quality HFT
+numbers, use an isolated physical core, disable or control frequency scaling,
+pin the NIC/interrupt work away from that core, warm up before measurement,
+and collect several alternating sample groups.
