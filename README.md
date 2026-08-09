@@ -102,6 +102,21 @@ wire stores without adding a hardware memory load.
 For reproducible timing methodology, CPU pinning, `perf stat` commands, and
 controlled median results, see [PERF_BENCHMARK.txt](PERF_BENCHMARK.txt).
 
+## Controlled benchmark improvement
+
+Nine alternating one-million-message runs were pinned to an unused CPU. The
+median result was:
+
+| Encoder | Total time / 1M encodes | Average time | Throughput |
+|---|---:|---:|---:|
+| Optimized | 138.321 ms | 138.321 ns/msg | 7.230M msg/s |
+| Normal | 281.351 ms | 281.351 ns/msg | 3.554M msg/s |
+
+The optimized encoder reduces the one-million-message run by **143.030 ms**
+and the average message time by **143.030 ns**: a **50.8% reduction** in time,
+or a **2.03x speedup**. Both benchmark variants were allocation-free and
+produced identical FIX wire messages.
+
 ## Benchmark caveat
 
 Nanosecond timings depend on CPU frequency, host scheduling, interrupts,
