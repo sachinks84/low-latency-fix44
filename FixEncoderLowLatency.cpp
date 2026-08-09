@@ -177,25 +177,27 @@ static_assert( FIX44_MAX_BODY_LENGTH == POW10_32[ 3 ] - 1 );
 }
 
 // The venue's limit-price scale is fixed at four decimal places.  The input
-// remains a double, but this avoids a runtime precision branch and loop.
+// remains a double, but this avoids a runtime precision branch and loop. Its
+// non-negative whole part must be below UINT32_MAX for the 32-bit fast path.
 inline char* fast_dtoa_fixed4_direct(double val, char* buf) {
-    auto whole = static_cast<uint64_t>(val);
+    assert( val >= 0.0 && val < static_cast<double>( UINT32_MAX ) );
+    auto whole = static_cast<uint32_t>(val);
     double frac = (val - static_cast<double>(whole)) * 10000.0;
-    auto frac_int = static_cast<uint64_t>(frac + 0.5);
+    auto frac_int = static_cast<uint32_t>(frac + 0.5);
 
     if (frac_int >= 10000) {
         whole += 1;
         frac_int = 0;
     }
 
-    const uint32_t w_len = fix_val_bytes64(whole);
+    const uint32_t w_len = fix_val_bytes(whole);
     char* w_ptr = buf + w_len;
     buf += w_len;
 
-    uint64_t w_val = whole;
+    uint32_t w_val = whole;
     while (w_val >= 100) {
-        const uint64_t q = w_val / 100;
-        const uint64_t r = w_val % 100;
+        const uint32_t q = w_val / 100;
+        const uint32_t r = w_val % 100;
         w_val = q;
         w_ptr -= 2;
         std::memcpy(w_ptr, &DIGITS_100[r * 2], 2);

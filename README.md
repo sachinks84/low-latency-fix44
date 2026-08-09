@@ -121,6 +121,24 @@ and the average message time by **143.030 ns**: a **50.8% reduction** in time,
 or a **2.03x speedup**. Both benchmark variants were allocation-free and
 produced identical FIX wire messages.
 
+## Native `perf stat` comparison
+
+On an unused, low-contention CPU, the full low-latency encoder was measured at
+**59.853 ns/message** (16.708M messages/second). The normal zero-copy baseline,
+which uses `std::to_chars` for number conversion and a scalar checksum, was
+approximately **220 ns/message** under the same intended workload.
+
+| Encoder | Average time | Throughput | Relative result |
+|---|---:|---:|---:|
+| Low-latency custom writers + AVX2 checksum | 59.853 ns/msg | 16.708M msg/s | baseline |
+| Normal `std::to_chars` + scalar checksum | ~220 ns/msg | ~4.55M msg/s | ~3.68x slower |
+
+This is approximately **160.147 ns/message** and **72.8%** less latency for
+the low-latency encoder. The low-latency `perf stat` sample recorded 172.5
+cycles/message, 537.9 instructions/message, 3.12 IPC, and 0.028 branch
+misses/message. Repeat both commands on the same selected CPU when publishing
+an exact counter-by-counter comparison.
+
 ## Benchmark caveat
 
 Nanosecond timings depend on CPU frequency, host scheduling, interrupts,
