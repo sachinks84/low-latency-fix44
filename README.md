@@ -41,6 +41,22 @@ the limit price and sequence number for every message.
 The low-latency encoder is approximately **3.68× faster**, saving about
 **160 ns per message** and reducing latency by approximately **72.8%**.
 
+## Hardware counter comparison (`perf stat`)
+
+Per-message hardware counters from `perf stat` on an Intel Xeon Gold 5118:
+
+| Counter | Low-latency | Normal | Reduction |
+|---|---:|---:|---:|
+| instructions | 548 | 1,944 | **3.55× fewer** |
+| cycles | 295 | 599 | **2.03× fewer** |
+| branches | 77 | 339 | **4.4× fewer** |
+| branch-misses | 1.0 | 1.0 | same |
+
+The custom direct writers and compile-time tag prefixes eliminate 3.55× the
+instructions per message compared to `std::to_chars`. The branch count drops
+4.4× because the lookup-table approach avoids the internal loops and
+conditionals of general-purpose number formatting.
+
 ## Build and run
 
 ```bash
