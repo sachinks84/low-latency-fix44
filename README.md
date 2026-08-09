@@ -123,10 +123,31 @@ produced identical FIX wire messages.
 
 ## Native `perf stat` comparison
 
-On an unused, low-contention CPU, the full low-latency encoder was measured at
-**59.853 ns/message** (16.708M messages/second). The normal zero-copy baseline,
-which uses `std::to_chars` for number conversion and a scalar checksum, was
-approximately **220 ns/message** under the same intended workload.
+The native low-latency sample was collected on an Intel Xeon Gold 5118
+(`x86_64`, 2 sockets, 24 physical cores, 48 logical CPUs, AVX2; 1.0-3.2 GHz
+policy range). The benchmark is unpinned unless `taskset` is used, so an
+unpinned sample does not identify its exact logical CPU after the run. Pin
+both implementations to the same CPU when making a direct comparison:
+
+```bash
+taskset -c <cpu> perf stat -e cycles,instructions,branches,branch-misses,cache-references,cache-misses \
+  ./FixEncoderLowLatency
+```
+
+Run the same hardware-counter command for both implementations:
+
+```bash
+perf stat -e cycles,instructions,branches,branch-misses,cache-references,cache-misses \
+  ./FixEncoderLowLatency
+
+perf stat -e cycles,instructions,branches,branch-misses,cache-references,cache-misses \
+  ./FixEncoder_Normal
+```
+
+The full low-latency encoder was measured at **59.853 ns/message** (16.708M
+messages/second). The normal zero-copy baseline, which uses `std::to_chars`
+for number conversion and a scalar checksum, was approximately **220
+ns/message** under the same intended workload.
 
 | Encoder | Average time | Throughput | Relative result |
 |---|---:|---:|---:|
@@ -136,8 +157,8 @@ approximately **220 ns/message** under the same intended workload.
 This is approximately **160.147 ns/message** and **72.8%** less latency for
 the low-latency encoder. The low-latency `perf stat` sample recorded 172.5
 cycles/message, 537.9 instructions/message, 3.12 IPC, and 0.028 branch
-misses/message. Repeat both commands on the same selected CPU when publishing
-an exact counter-by-counter comparison.
+misses/message. Capture the normal command above on the same selected CPU when
+publishing an exact counter-by-counter comparison.
 
 ## Benchmark caveat
 
