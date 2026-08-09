@@ -157,8 +157,12 @@ ns/message** under the same intended workload.
 This is approximately **160.147 ns/message** and **72.8%** less latency for
 the low-latency encoder. The low-latency `perf stat` sample recorded 172.5
 cycles/message, 537.9 instructions/message, 3.12 IPC, and 0.028 branch
-misses/message. Capture the normal command above on the same selected CPU when
-publishing an exact counter-by-counter comparison.
+misses/message. Its cache counters were 21,653 cache references and 916 cache
+misses over one million messages: 0.0217 references/message, 0.000916
+misses/message, and a 4.23% cache-miss ratio. Generic `perf` cache counters
+are not an L1-only measurement; use them to compare both binaries on the same
+CPU and workload. Capture the normal command above on the same selected CPU
+when publishing an exact counter-by-counter comparison.
 
 ## Benchmark caveat
 

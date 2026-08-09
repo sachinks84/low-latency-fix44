@@ -71,9 +71,17 @@ Use this exact counter set for each implementation:
 
 An observed native low-latency run reported 59.853 ns/message (16.708 million
 messages/second), 172.5 cycles/message, 537.9 instructions/message, 3.12 IPC,
-and 0.028 branch misses/message. The normal `std::to_chars` plus scalar-
-checksum baseline was approximately 220 ns/message under the same intended
-workload. This is an approximately 3.68x speedup and 72.8% lower latency.
+and 0.028 branch misses/message. Cache counters for that run were:
+
+    cache references: 21,653 total, 0.0217/message
+    cache misses:        916 total, 0.000916/message
+    cache-miss ratio:   4.23%
+
+Generic `perf` cache-reference/cache-miss events are not an L1-only metric;
+they are most useful when comparing both binaries under the same CPU affinity
+and workload. The normal `std::to_chars` plus scalar-checksum baseline was
+approximately 220 ns/message under the same intended workload. This is an
+approximately 3.68x speedup and 72.8% lower latency.
 
 The full normal perf output must be captured with the command above on the
 same reported CPU before publishing a counter-by-counter comparison; do not
