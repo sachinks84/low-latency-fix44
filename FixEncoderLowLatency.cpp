@@ -249,28 +249,12 @@ class Fix4Encoder {
     return buf + len;
 }
 
-[[gnu::always_inline]] inline char *writeInt( char *buf, int val ) {
-    if ( val < 0 ) {
-        *buf++ = '-';
-        return writeUint32( buf, 0 - static_cast<uint32_t>( val ) );
-    }
-    return writeUint32( buf, static_cast<uint32_t>( val ) );
-}
-
 template <int Tag>
 [[gnu::always_inline]] inline char *writeTagPrefix( char *buf ) {
     static_assert( Tag >= 10 && Tag <= 99 );
     *buf++ = static_cast<char>( '0' + Tag / 10 );
     *buf++ = static_cast<char>( '0' + Tag % 10 );
     *buf++ = '=';
-    return buf;
-}
-
-template <int Tag>
-[[gnu::always_inline]] inline char *tagVal( char *buf, int val ) {
-    buf = writeTagPrefix<Tag>( buf );
-    buf = writeInt( buf, val );
-    *buf++ = '\001';
     return buf;
 }
 
