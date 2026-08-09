@@ -62,6 +62,8 @@ copy is used.
 - Integer conversion uses a digit-count estimate and a `00..99` table. It
   writes decimal characters right-to-left in two-digit groups without
   `std::to_string` or allocation.
+- Unsigned `uint32_t` fields, including MsgSeqNum and OrderQty, use a direct
+  unsigned writer; they are never narrowed through `int`.
 - The incoming limit price remains a `double`, but the venue price scale is
   fixed at four decimal places. The specialized formatter writes `44=` directly
   to the packet buffer and handles decimal rounding carry.
@@ -74,6 +76,8 @@ copy is used.
 - Checksum uses AVX2 byte-sum instructions. For an unaligned supplied start,
   it sums the scalar prefix up to the next 32-byte boundary, uses aligned AVX2
   loads for the body, then finishes the scalar tail.
+- Checksum tag formatting writes the final two digits with the `00..99` table,
+  avoiding separate tens and ones arithmetic.
 - Global scalar `new` and `new[]` counters verify that the timed benchmark has
   no C++ dynamic allocations.
 

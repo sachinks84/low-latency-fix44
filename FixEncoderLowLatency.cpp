@@ -273,6 +273,14 @@ template <int Tag>
 }
 
 template <int Tag>
+[[gnu::always_inline]] inline char *tagVal( char *buf, uint32_t val ) {
+    buf = writeTagPrefix<Tag>( buf );
+    buf = writeUint32( buf, val );
+    *buf++ = '\001';
+    return buf;
+}
+
+template <int Tag>
 [[gnu::always_inline]] inline char *tagVal( char *buf, double val ) {
     buf = writeTagPrefix<Tag>( buf );
     buf = fast_dtoa_fixed4_direct( val, buf );
@@ -302,8 +310,8 @@ template <int Tag>
     *buf++ = '0';
     *buf++ = '=';
     *buf++ = static_cast<char>( '0' + checksum / 100 );
-    *buf++ = static_cast<char>( '0' + (checksum / 10) % 10 );
-    *buf++ = static_cast<char>( '0' + checksum % 10 );
+    std::memcpy( buf, &DIGITS_100[ ( checksum % 100 ) * 2 ], 2 );
+    buf += 2;
     *buf++ = '\001';
     return buf;
 }
@@ -333,14 +341,14 @@ class BuyOrder : public Fix4Encoder <BuyOrder >{
          char *bodyEnd = tagVal<35>( bodyStart, "D" );
          bodyEnd = tagVal<49>( bodyEnd, order->sender_comp_id );
          bodyEnd = tagVal<56>( bodyEnd, order->target_comp_id );
-         bodyEnd = tagVal<34>( bodyEnd, static_cast<int>( order->seq_num ) );
+         bodyEnd = tagVal<34>( bodyEnd, order->seq_num );
          bodyEnd = tagVal<52>( bodyEnd, order->sending_time );
          bodyEnd = tagVal<11>( bodyEnd, order->cl_ord_id );
          bodyEnd = tagVal<21>( bodyEnd, '1' );
          bodyEnd = tagVal<55>( bodyEnd, order->symbol );
          bodyEnd = tagVal<54>( bodyEnd, order->side );
          bodyEnd = tagVal<60>( bodyEnd, order->transact_time );
-         bodyEnd = tagVal<38>( bodyEnd, static_cast<int>( order->order_qty ) );
+         bodyEnd = tagVal<38>( bodyEnd, order->order_qty );
          bodyEnd = tagVal<40>( bodyEnd, order->ord_type );
          bodyEnd = tagVal<44>( bodyEnd, order->price );
          bodyEnd = tagVal<59>( bodyEnd, order->time_in_force );

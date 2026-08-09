@@ -101,6 +101,13 @@ static constexpr int LIMIT_PRICE_SCALE = 4;
    return end;
 }
 
+[[gnu::always_inline]] inline char *writeUint32Normal(
+   char *buf, uint32_t value ) {
+   const auto [ end, error ] = std::to_chars( buf, buf + 10, value );
+   assert( error == std::errc{} );
+   return end;
+}
+
 [[gnu::always_inline]] inline char *writeDoubleNormal(
    char *buf, double value ) {
    // A price has more than enough space in the encoder's fixed packet buffer.
@@ -115,6 +122,15 @@ static constexpr int LIMIT_PRICE_SCALE = 4;
    buf = writeIntNormal( buf, tag );
    *buf++ = '=';
    buf = writeIntNormal( buf, value );
+   *buf++ = '\001';
+   return buf;
+}
+
+[[gnu::always_inline]] inline char *tagVal(
+   char *buf, int tag, uint32_t value ) {
+   buf = writeIntNormal( buf, tag );
+   *buf++ = '=';
+   buf = writeUint32Normal( buf, value );
    *buf++ = '\001';
    return buf;
 }
@@ -175,14 +191,14 @@ class BuyOrder {
          char *bodyEnd = tagVal( bodyStart, 35, "D" );
          bodyEnd = tagVal( bodyEnd, 49, order->sender_comp_id );
          bodyEnd = tagVal( bodyEnd, 56, order->target_comp_id );
-         bodyEnd = tagVal( bodyEnd, 34, static_cast<int>( order->seq_num ) );
+         bodyEnd = tagVal( bodyEnd, 34, order->seq_num );
          bodyEnd = tagVal( bodyEnd, 52, order->sending_time );
          bodyEnd = tagVal( bodyEnd, 11, order->cl_ord_id );
          bodyEnd = tagVal( bodyEnd, 21, '1' );
          bodyEnd = tagVal( bodyEnd, 55, order->symbol );
          bodyEnd = tagVal( bodyEnd, 54, order->side );
          bodyEnd = tagVal( bodyEnd, 60, order->transact_time );
-         bodyEnd = tagVal( bodyEnd, 38, static_cast<int>( order->order_qty ) );
+         bodyEnd = tagVal( bodyEnd, 38, order->order_qty );
          bodyEnd = tagVal( bodyEnd, 40, order->ord_type );
          bodyEnd = tagVal( bodyEnd, 44, order->price );
          bodyEnd = tagVal( bodyEnd, 59, order->time_in_force );
