@@ -57,6 +57,25 @@ instructions per message compared to `std::to_chars`. The branch count drops
 4.4× because the lookup-table approach avoids the internal loops and
 conditionals of general-purpose number formatting.
 
+## Per-message latency distribution (`rdtscp`)
+
+Each encode is timed with a serializing `__rdtscp` pair. A calibration loop
+measures the overhead of two `__rdtscp` calls plus the vector store, and that
+constant is subtracted from every sample. One million latencies are collected,
+sorted, and reported as percentiles in TSC ticks.
+
+Median of 9 pinned runs on CPU 32 (Intel Xeon Gold 5118):
+
+| Percentile | Low-latency | Normal | Speedup |
+|---|---:|---:|---:|
+| avg | 158 ticks | 475 ticks | **3.01×** |
+| p50 | 153 ticks | 460 ticks | **3.01×** |
+| p99 | 197 ticks | 516 ticks | **2.62×** |
+
+The low-latency encoder maintains a tight distribution: its p99 is only 1.29×
+its p50. The `__rdtscp` measurement adds approximately 33 ns of overhead per
+message; the ticks above reflect encode cost after overhead subtraction.
+
 ## Build and run
 
 ```bash
